@@ -12,6 +12,7 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "thread.h"
+#include "devices/timer.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -71,6 +72,7 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
+struct thread *draw_lottery(void);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -563,6 +565,13 @@ schedule (void)
   struct thread *cur = running_thread ();
   struct thread *next = next_thread_to_run ();
   struct thread *prev = NULL;
+  
+  printf("[SCHED] tick=%d | running=%s(tid=%d) | tickets=%d | recent_cpu=%d | priority=%d\n",
+        timer_ticks(),
+        next->name,
+        next->tid,
+        next->tickets, 
+        next->priority);
 
   ASSERT (intr_get_level () == INTR_OFF);
   ASSERT (cur->status != THREAD_RUNNING);
@@ -591,7 +600,7 @@ allocate_tid (void)
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
-static struct thread *
+struct thread *
 draw_lottery(void) {
   if (list_empty(&ready_list))
     return idle_thread;
@@ -619,3 +628,19 @@ draw_lottery(void) {
 // printf("[DEBUG] %s got %d ticks, %d tickets\n", thread_current()->name,
 //        thread_current()->recent_cpu_ticks,
 //        thread_current()->tickets);
+
+static void test_thread_func (void* aux) {
+  int tickets = (int)(uintptr_t)aux;
+  thread_current()->tickets = tickets;
+
+  int cnt = 0;
+  while (cnt < 1000) {
+    cnt ++;
+    if (cnt % 100 == 0) {
+      printf (">>? [%s] run #%d | ticket = %d\n", thread_current()->name, cnt, tickets);
+    }
+    thread_yield();
+  }
+  printf("=== [%s] FINISHED | total runs = %d | tickets = %d ===\n");
+  thread_exit();
+}

@@ -38,6 +38,8 @@
 #include "filesys/fsutil.h"
 #endif
 
+#include <random.h>
+
 /* Page directory with kernel mappings only. */
 uint32_t *init_page_dir;
 
@@ -117,6 +119,7 @@ main (void)
 
   /* Start thread scheduler and enable interrupts. */
   thread_start ();
+  run_lottery_test();
   serial_init_queue ();
   timer_calibrate ();
 
@@ -275,6 +278,15 @@ parse_options (char **argv)
   random_init (rtc_get_time ());
   
   return argv;
+}
+
+static void test_thread_func (void *aux);
+
+void 
+run_lottery_test (void) {
+  thread_create("Thread 1", PRI_DEFAULT, test_thread_func, (void*)1);
+  thread_create("Thread 2", PRI_DEFAULT, test_thread_func, (void*)3);
+  thread_create("Thread 3", PRI_DEFAULT, test_thread_func, (void*)6);
 }
 
 /* Runs the task specified in ARGV[1]. */
